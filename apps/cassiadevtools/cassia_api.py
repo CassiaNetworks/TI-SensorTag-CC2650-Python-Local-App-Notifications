@@ -54,7 +54,7 @@ class CassiaApi:
         is_successful = True
         sse_url = ''.join([
                     self.api_url_protocol,'://',
-                    self.api_domain,'/gap/nodes?event=1'
+                    self.api_domain,'/gap/nodes/<node>/connection'. # TODO: Add MAC address of device.
                 ])
 
         if len(filters):
@@ -69,25 +69,28 @@ class CassiaApi:
                     print(data['bdaddrs'][0]['bdaddr'])
                     #print(data)
         except ConnectionError as e:
-            print(e)
             sse_client.resp.close()
             is_successful = False
+            raise e
         return is_successful
 
     async def connect(self):
         is_successful = True
+        url = ''.join([
+                    self.api_url_protocol,'://',
+                    self.api_domain,'/gap/nodes?event=1'
+                ])
         print('connect')
-        async with session.post(url, data ={
-                "terms": 1,
-                "captcha": 1,
-                "email": "user%s@hotmail.com" % str(x),
-                "full_name": "user%s" % str(x),
-                "password": "123456",
-                "username": "auser%s" % str(x)
-          }) as response:
-          data = await response.text()
-          print("-> Created account number %d" % x)
-          print (data)
+        try:
+            async with session.post(url, data ={
+                    'timeout': '10000',
+                    'type': 'public'
+              }) as response:
+              data = await response.text()
+              print (data)
+        except aiohttp.ClientError as e:
+            is_successful = False
+            raise e
         return is_successful
 
     async def pair(self, devices):
