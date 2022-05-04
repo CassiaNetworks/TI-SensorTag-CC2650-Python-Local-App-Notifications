@@ -7,13 +7,18 @@ Cassia RESTful API for the container, router, and AC.
 
   Typical usage example:
 
-  cassia_api = CassiaApi('router', '10.10.10.254')
+  cassia_api = CassiaApi('container')
+  
+  cassia_api = CassiaApi('gateway', '192.168.1.48')
+  
+  cassia_api = CassiaApi('ac', 'demo.cassia.pro')
 
 TODO: Add more Cassia RESTful API methods.
 """
 
 from enum import Enum
 from aiohttp_sse_client import client as sse_client
+import aiohttp
 import asyncio
 import json
 
@@ -55,23 +60,34 @@ class CassiaApi:
         if len(filters):
             sse_url = sse_url + '&' + '&'.join(filters)
 
-        async with sse_client.EventSource(sse_url) as event_source:
-            try:
+        try:
+            async with sse_client.EventSource(sse_url) as event_source:
                 async for event in event_source:
                     data = json.loads(event.data)
                     scanned_devices.append(data['bdaddrs'][0]['bdaddr'])
                     # Print out the device MAC address.
                     print(data['bdaddrs'][0]['bdaddr'])
                     #print(data)
-            except ConnectionError as e:
-                print(e)
-                sse_client.resp.close()
-                is_successful = False
+        except ConnectionError as e:
+            print(e)
+            sse_client.resp.close()
+            is_successful = False
         return is_successful
 
     async def connect(self):
         is_successful = True
         print('connect')
+        async with session.post(url, data ={
+                "terms": 1,
+                "captcha": 1,
+                "email": "user%s@hotmail.com" % str(x),
+                "full_name": "user%s" % str(x),
+                "password": "123456",
+                "username": "auser%s" % str(x)
+          }) as response:
+          data = await response.text()
+          print("-> Created account number %d" % x)
+          print (data)
         return is_successful
 
     async def pair(self, devices):
