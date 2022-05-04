@@ -21,6 +21,7 @@ from aiohttp_sse_client import client as sse_client
 import aiohttp
 import asyncio
 import json
+import time
 
 class CassiaApi:
     CONTAINER_ADDRESS = "10.10.10.254";
@@ -50,11 +51,11 @@ class CassiaApi:
         if self.api_type == self.ApiType.AC:
             self.api_domain += '/api'
 
-    async def scan(self, filters, scanned_devices=[]):
+    async def scan(self, filters, scanned_devices={}):
         is_successful = True
         sse_url = ''.join([
                     self.api_url_protocol,'://',
-                    self.api_domain,'/gap/nodes/<node>/connection'. # TODO: Add MAC address of device.
+                    self.api_domain,'/gap/nodes?event=1'
                 ])
 
         if len(filters):
@@ -64,10 +65,19 @@ class CassiaApi:
             async with sse_client.EventSource(sse_url) as event_source:
                 async for event in event_source:
                     data = json.loads(event.data)
-                    scanned_devices.append(data['bdaddrs'][0]['bdaddr'])
+                    scanned_devices[data['bdaddrs'][0]['bdaddr']] = time.time()
                     # Print out the device MAC address.
-                    print(data['bdaddrs'][0]['bdaddr'])
+                    #print(data['bdaddrs'][0]['bdaddr'])
                     #print(data)
+                    marked_for_del_macs = []
+                    for key, time_val in scanned_devices.items():
+                        print(key)
+                        if time.time() - time_val >= 30:
+                            marked_for_del_macs.append(key)
+
+                    for mac in marked_for_del_macs:
+                        del scanned_devices[mac]
+
         except ConnectionError as e:
             sse_client.resp.close()
             is_successful = False
@@ -78,7 +88,7 @@ class CassiaApi:
         is_successful = True
         url = ''.join([
                     self.api_url_protocol,'://',
-                    self.api_domain,'/gap/nodes?event=1'
+                    self.api_domain,'/gap/nodes/<node>/connection'  # TODO: Add MAC address of device.
                 ])
         print('connect')
         try:

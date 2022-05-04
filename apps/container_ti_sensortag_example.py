@@ -34,7 +34,7 @@ async def main():
     connected_devices_lock = asyncio.Lock()
     paired_devices_lock = asyncio.Lock()
 
-    scanned_devices = []
+    scanned_devices = {}
     connected_devices = {}  # value 0 for not connected, 1 for connected.
     paired_devices = {} # value 0 for unpaired, 1 for paired.
     
@@ -45,8 +45,8 @@ async def main():
 
     await asyncio.gather(
         scan_devices(api, scan_filters, scanned_devices, scanned_devices_lock),
-        connect_devices(api, scanned_devices, connected_devices,
-                        connected_devices_lock, scanned_devices_lock),
+        #connect_devices(api, scanned_devices, connected_devices,
+        #                connected_devices_lock, scanned_devices_lock),
         #pair_devices(api, connected_devices, paired_devices,
         #             paired_devices_lock, connected_devices_lock)
     )
