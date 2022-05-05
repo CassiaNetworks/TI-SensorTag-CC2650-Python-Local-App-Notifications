@@ -51,7 +51,13 @@ class CassiaApi:
         if self.api_type == self.ApiType.AC:
             self.api_domain += '/api'
 
-    async def scan_connect_pair_notify(self, scan_filters=[], scanned_devices={}, connect_options={}, connected_devices={}):
+    async def scan_connect_notify(self,
+                                  scan_filters=[],
+                                  scanned_devices={},
+                                  connect_options={},
+                                  connected_devices={},
+                                  notify_handles=[],
+                                  notify_values=[]):
         is_successful = True
         sse_url = ''.join([
             self.api_url_protocol + '://',
@@ -73,9 +79,23 @@ class CassiaApi:
                     if await self.connect(device_mac, connect_options):
                         connected_devices[device_mac] = 1
 
+                        # Open notification for
+                        # movement (Gyroscope, Accelerometer, Magnetometer)
+                        # by writing 0x0100 to handle 61.
+                        is_notify_successful = True
+                        for n_handle, n_value in zip(notify_handles, notify_values):
+                            if not await self.write(device_mac, n_handle, n_value):
+                                is_notify_successful = False
+
+                        if is_notify_successful:
+                            print('Turned ON movement notification for: ' + device_mac)
+                        else:
+                            print('Error while attempting to turn ON ' +
+                                  'movement notification for: ' + device_mac)
+
+
                     marked_for_del_macs = []
                     for key, time_val in scanned_devices.items():
-                        print(key)
                         if time.time() - time_val >= 30:
                             marked_for_del_macs.append(key)
 
@@ -105,7 +125,7 @@ class CassiaApi:
                     scanned_devices[data['bdaddrs'][0]['bdaddr']] = time.time()
                     marked_for_del_macs = []
                     for key, time_val in scanned_devices.items():
-                        print(key)
+                        #print(key)
                         if time.time() - time_val >= 30:
                             marked_for_del_macs.append(key)
 
@@ -131,7 +151,7 @@ class CassiaApi:
             async with aiohttp.ClientSession() as session:
                 async with session.post(url, data=options) as response:
                   data = await response.text()
-                  print (data)
+                  #print (data)
         except aiohttp.ClientError as e:
             is_successful = False
             raise e
@@ -161,7 +181,7 @@ class CassiaApi:
             async with aiohttp.ClientSession() as session:
                 async with session.delete(url) as response:
                   data = await response.text()
-                  print (data)
+                  #print (data)
         except aiohttp.ClientError as e:
             is_successful = False
             raise e
@@ -169,14 +189,44 @@ class CassiaApi:
         await session.close()
         return is_successful
 
-    async def write(self, handle, value):
+    async def write(self, device_mac, handle, value):
         is_successful = True
         url = ''.join([
             self.api_url_protocol + '://',
             self.api_domain,
             '/gatt/nodes/' + device_mac,
             '/handle/' + handle,
-            '/value/' + value, # '/handle/61/value/0100'
+            '/value/' + value,
         ])
-        print('writing value ' + value + 'to handle ' + handle + '.')
+        print('writing value ' + value + ' to handle ' + handle + '.')
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url) as response:
+                  data = await response.text()
+                  #print (data)
+        except aiohttp.ClientError as e:
+            is_successful = False
+            raise e
+
+        await session.close()
+        return is_successful
+
+    async def get_notifications(self):
+        is_successful = True
+        sse_url = ''.join([
+            self.api_url_protocol + '://',
+            self.api_domain,
+            '/gatt/nodes?event=1',
+        ])
+
+        try:
+            async with sse_client.EventSource(sse_url) as event_source:
+                async for event in event_source:
+                    data = json.loads(event.data)
+                    print('Notification data: ' + str(data))
+
+        except ConnectionError as e:
+            sse_client.resp.close()
+            is_successful = False
+            raise e
         return is_successful

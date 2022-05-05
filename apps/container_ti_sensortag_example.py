@@ -7,40 +7,30 @@ from functools import partial
 
 API_DOMAIN_OR_IP_ADDRESS = '192.168.4.25'  #'10.10.10.254'
 
-async def scan_connect_pair_notify(api,
+async def scan_connect_notify(api,
                                    scan_filters,
                                    scanned_devices,
                                    connect_options,
                                    connected_devices):
-    await api.scan_connect_pair_notify(scan_filters, scanned_devices, connect_options, connected_devices)
+    await api.scan_connect_notify(
+        scan_filters,
+        scanned_devices,
+        connect_options,
+        connected_devices,
+        ['61', '63'],
+        ['0100', 'ff00'])
 
-"""async def connect_devices(api, options, scanned_devices, connected_devices,
-                          connected_devices_lock, scanned_devices_lock):
-    async with scanned_devices_lock:
-        for scanned_dev_mac in scanned_devices:
-                # Use the device MAC address to connect.
-                is_successful = await api.connect(scanned_dev_mac, options)
-                if is_successful:
-                    print('connected: ' + scanned_dev_mac)
-                    async with connected_devices:
-                        connected_devices[scanned_dev_mac] = 1
-
-async def pair_devices(api, connected_devices, paired_devices,
-                       paired_devices_lock, connected_devices_lock):
-    async with connected_devices_lock:
-        for connected_dev_mac in connected_devices.items():
-            is_successful = await api.pair(connected_dev_mac)
-            if is_successful:
-                async with paired_device_lock:
-                    paired_devices[connected_dev_mac] = 1  # Set to paired.
-"""
+async def notification_stream(api):
+    await api.get_notifications()
 
 # TODO: Cover disconnect case when device isn't manually disconnected.
 #       Maybe check status of device?
 async def exit_handler(api, connected_devices):
     for mac in connected_devices:
-        is_successful = await api.disconnect(mac)
-        if is_successful:
+        # Turn off notifiactions for movement by writing 0x0000 to handle 61.
+        if await api.write(mac, '61','0000'):
+            print('Turned OFF movement notification for: ' + mac)
+        if await api.disconnect(mac):
             connected_devices[mac] = 0
             print('Disconnected: ' + mac)
         else:
@@ -70,17 +60,14 @@ async def main():
     asyncio_atexit.register(exit_disconnect)
 
     await asyncio.gather(
-        scan_connect_pair_notify(
+        scan_connect_notify(
             api,
             scan_filters,
             scanned_devices,
             connect_options,
             connected_devices
         ),
-        #connect_devices(api, connect_options, scanned_devices, connected_devices,
-        #                connected_devices_lock, scanned_devices_lock),
-        #pair_devices(api, connected_devices, paired_devices,
-        #             paired_devices_lock, connected_devices_lock)
+        notification_stream(api),
     )
 
 if __name__ == '__main__':
