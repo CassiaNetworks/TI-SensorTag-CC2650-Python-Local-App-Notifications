@@ -51,6 +51,43 @@ class CassiaApi:
         if self.api_type == self.ApiType.AC:
             self.api_domain += '/api'
 
+    async def scan_connect_pair_notify(self, scan_filters=[], scanned_devices={}, connect_options={}, connected_devices={}):
+        is_successful = True
+        sse_url = ''.join([
+                    self.api_url_protocol,'://',
+                    self.api_domain,'/gap/nodes?event=1'
+                ])
+
+        if len(scan_filters):
+            sse_url = sse_url + '&' + '&'.join(scan_filters)
+
+        try:
+            async with sse_client.EventSource(sse_url) as event_source:
+                async for event in event_source:
+                    data = json.loads(event.data)
+                    device_mac = data['bdaddrs'][0]['bdaddr']
+                    scanned_devices[device_mac] = time.time()
+                    # Print out the device MAC address.
+                    #print(data['bdaddrs'][0]['bdaddr'])
+
+                    # Connect the device.
+                    if await self.connect(device_mac, connect_options):
+                        connected_devices[device_mac] = 1
+
+                    marked_for_del_macs = []
+                    for key, time_val in scanned_devices.items():
+                        print(key)
+                        if time.time() - time_val >= 30:
+                            marked_for_del_macs.append(key)
+
+                    for mac in marked_for_del_macs:
+                        del scanned_devices[mac]
+        except ConnectionError as e:
+            sse_client.resp.close()
+            is_successful = False
+            raise e
+        return is_successful
+
     async def scan(self, filters, scanned_devices={}):
         is_successful = True
         sse_url = ''.join([
@@ -84,23 +121,23 @@ class CassiaApi:
             raise e
         return is_successful
 
-    async def connect(self):
+    async def connect(self, device_mac='', options={}):
         is_successful = True
         url = ''.join([
                     self.api_url_protocol,'://',
-                    self.api_domain,'/gap/nodes/<node>/connection'  # TODO: Add MAC address of device.
+                    self.api_domain,'/gap/nodes/' + device_mac + '/connection'
                 ])
         print('connect')
         try:
-            async with session.post(url, data ={
-                    'timeout': '10000',
-                    'type': 'public'
-              }) as response:
-              data = await response.text()
-              print (data)
+            async with aiohttp.ClientSession() as session:
+                async with session.post(url, data=options) as response:
+                  data = await response.text()
+                  print (data)
         except aiohttp.ClientError as e:
             is_successful = False
             raise e
+
+        await session.close()
         return is_successful
 
     async def pair(self, devices):
@@ -113,9 +150,23 @@ class CassiaApi:
         print('unpair')
         return is_successful
 
-    async def disconnect(self):
+    async def disconnect(self, device_mac):
         is_successful = True
+        url = ''.join([
+                    self.api_url_protocol,'://',
+                    self.api_domain,'/gap/nodes/' + device_mac + '/connection'
+                ])
         print('disconnect')
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.delete(url) as response:
+                  data = await response.text()
+                  print (data)
+        except aiohttp.ClientError as e:
+            is_successful = False
+            raise e
+
+        await session.close()
         return is_successful
 
     async def notify(self):
