@@ -5,7 +5,7 @@ import atexit
 import asyncio_atexit
 from functools import partial
 
-API_DOMAIN_OR_IP_ADDRESS = '192.168.4.25'  #'10.10.10.254'
+API_DOMAIN_OR_IP_ADDRESS = '10.10.10.254'
 
 async def scan_connect_notify(api,
                                    scan_filters,
@@ -17,8 +17,8 @@ async def scan_connect_notify(api,
         scanned_devices,
         connect_options,
         connected_devices,
-        ['61', '63'],
-        ['0100', 'ff00'])
+        ['61', '63'],  # Handles to turn on movement notification and data.
+        ['0100', 'ff00']). # Values to write for movement notification data.
 
 async def notification_stream(api):
     await api.get_notifications()

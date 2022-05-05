@@ -1,4 +1,4 @@
-# TI SensorTag CC2650STK Container Script Example (Python 3) - Scan, Pair, Connect, Write, and Notify
+# TI SensorTag CC2650STK Container Script Example (Python 3) - Scan, Connect, Write, and Notify
 
 
 This Python application is for the Cassia Gateway Container v2.0.1 and above.
