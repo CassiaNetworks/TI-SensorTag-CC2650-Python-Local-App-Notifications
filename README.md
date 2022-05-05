@@ -25,3 +25,8 @@ https://www.cassianetworks.com/download/firmware/container/ubuntu_XE1000_2.0.1.t
 * Click on Install, and wait for the container to install.
 * Refresh the page, and the container page should show up.
 * Wait for the Container Status to change to "running". Refresh the page to check.
+
+
+To run the application (from the root of the project folder):
+
+python apps/container_ti_sensortag_example.py
